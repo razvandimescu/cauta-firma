@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Company Lookup — Romanian Company Financial Data</title>
+<title>Info Firme — Date financiare pentru companiile din Romania</title>
 <style>
   :root {
     --bg: #0f1117; --surface: #1a1d27; --card: #1e2130; --border: #2a2d3a;
@@ -132,15 +132,15 @@
 </head>
 <body>
 <div class="container">
-  <h1>Company Lookup</h1>
-  <p class="subtitle">Search 4M+ Romanian companies by name or CUI — with live ANAF financial data</p>
+  <h1>Info Firme</h1>
+  <p class="subtitle">Cauta in peste 4 milioane de companii din Romania — cu date financiare ANAF in timp real</p>
 
   <div class="search-box">
-    <input type="text" id="searchInput" placeholder="Company name or CUI…" autofocus
+    <input type="text" id="searchInput" placeholder="Nume firma sau CUI…" autofocus
            oninput="onInput()" onkeydown="onKey(event)">
     <div class="ac-list" id="acList"></div>
   </div>
-  <div class="search-hint">Type at least 2 characters to search by name, or enter a CUI directly</div>
+  <div class="search-hint">Introduceti cel putin 2 caractere pentru cautare dupa nume, sau un CUI direct</div>
 
   <div class="year-select">
     <label><input type="checkbox" value="2021"><span>2021</span></label>
@@ -154,12 +154,12 @@
 
 <script>
 const INDICATORS = {
-  I1:'Active Imobilizate', I2:'Active Circulante', I3:'Stocuri', I4:'Creante',
-  I5:'Casa si conturi la banci', I6:'Cheltuieli in avans', I7:'Datorii',
-  I8:'Venituri in avans', I9:'Provizioane', I10:'Capitaluri Total',
-  I11:'Capital subscris varsat', I12:'Patrimoniul regiei', I13:'Cifra de afaceri neta',
-  I14:'Venituri Totale', I15:'Cheltuieli Totale', I16:'Profit Brut',
-  I17:'Pierdere Bruta', I18:'Profit Net', I19:'Pierdere Neta', I20:'Nr. Mediu Salariati',
+  I1:'Active imobilizate', I2:'Active circulante', I3:'Stocuri', I4:'Creanțe',
+  I5:'Casa și conturi la bănci', I6:'Cheltuieli în avans', I7:'Datorii',
+  I8:'Venituri în avans', I9:'Provizioane', I10:'Capitaluri total',
+  I11:'Capital subscris vărsat', I12:'Patrimoniul regiei', I13:'Cifra de afaceri netă',
+  I14:'Venituri totale', I15:'Cheltuieli totale', I16:'Profit brut',
+  I17:'Pierdere brută', I18:'Profit net', I19:'Pierdere netă', I20:'Nr. mediu salariați',
 };
 
 let acIdx = -1, debounceTimer;
@@ -170,7 +170,7 @@ async function doAutocomplete() {
   const q = document.getElementById('searchInput').value.trim();
   if (q.length < 2) { closeAC(); return; }
   const list = document.getElementById('acList');
-  list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)"><span class="spinner"></span> Searching…</div></div>';
+  list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)"><span class="spinner"></span> Se cauta…</div></div>';
   list.classList.add('open');
   list._results = [];
   try {
@@ -182,7 +182,7 @@ async function doAutocomplete() {
 
 function renderAC(results, query) {
   const list = document.getElementById('acList');
-  if (!results.length) { list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)">No results found</div></div>'; list.classList.add('open'); list._results = []; return; }
+  if (!results.length) { list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)">Niciun rezultat gasit</div></div>'; list.classList.add('open'); list._results = []; return; }
   acIdx = -1;
   const ql = query.toLowerCase();
   list.innerHTML = results.map((r, i) => {
@@ -224,9 +224,9 @@ async function selectResult(idx) {
 
 async function loadCompany(cui) {
   const years = [...document.querySelectorAll('.year-select input:checked')].map(c => +c.value).sort();
-  if (!years.length) { show('<div class="status error">Select at least one year</div>'); return; }
+  if (!years.length) { show('<div class="status error">Selectati cel putin un an</div>'); return; }
 
-  show('<div class="status"><span class="spinner"></span> Loading company profile…</div>');
+  show('<div class="status"><span class="spinner"></span> Se incarca profilul companiei…</div>');
 
   // Fetch company details + bilant in parallel
   const [companyResp, ...bilantResults] = await Promise.allSettled([
@@ -291,13 +291,13 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       <div>${statusBadge}<span class="badge badge-form">${esc(co.forma_juridica||'')}</span><span class="badge badge-size">${size}</span></div>
       <div class="info-grid">
         <div><div class="label">CUI</div><div class="value">${esc(cui)}</div></div>
-        <div><div class="label">Nr. Reg. Com.</div><div class="value">${esc(co.cod_inmatriculare||'—')}</div></div>
+        <div><div class="label">Nr. Inmatriculare</div><div class="value">${esc(co.cod_inmatriculare||'—')}</div></div>
         <div><div class="label">EUID</div><div class="value">${esc(co.euid||'—')}</div></div>
         <div><div class="label">Data infiintarii</div><div class="value">${esc(co.data_inmatriculare||'—')}</div></div>
         <div><div class="label">Judet</div><div class="value">${esc(co.judet||'—')}</div></div>
         <div><div class="label">Localitate</div><div class="value">${esc(co.localitate||'—')}</div></div>
-        <div><div class="label">Adresa</div><div class="value">${esc(co.adresa||'—')}${co.cod_postal ? ' Cod '+esc(co.cod_postal) : ''}</div></div>
-        <div><div class="label">Website</div><div class="value">${co.web ? `<a href="${co.web.startsWith('http')?'':'https://'}${esc(co.web)}" target="_blank">${esc(co.web)}</a>` : '—'}</div></div>
+        <div><div class="label">Adresa</div><div class="value">${esc(co.adresa||'—')}${co.cod_postal ? ' Cod postal '+esc(co.cod_postal) : ''}</div></div>
+        <div><div class="label">Site web</div><div class="value">${co.web ? `<a href="${co.web.startsWith('http')?'':'https://'}${esc(co.web)}" target="_blank">${esc(co.web)}</a>` : '—'}</div></div>
       </div>
     </div>`;
 
@@ -320,7 +320,7 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       <div class="metric"><div class="label">Cifra de Afaceri ${latest}</div><div class="val">${fmtRON(v(latest,'I13'))}</div>${prev?`<div class="sub">${prev}: ${fmtRON(v(prev,'I13'))}</div>`:''}</div>
       <div class="metric"><div class="label">Profit Net ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${fmtRON(pn(latest))}</div>${prev?`<div class="sub">${prev}: ${fmtRON(pn(prev))}</div>`:''}</div>
       <div class="metric"><div class="label">Nr. Salariati ${latest}</div><div class="val">${v(latest,'I20')||'—'}</div>${prev?`<div class="sub">${prev}: ${v(prev,'I20')||'—'}</div>`:''}</div>
-      <div class="metric"><div class="label">Marja Profit ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${v(latest,'I13')>0?(pn(latest)/v(latest,'I13')*100).toFixed(1)+'%':'—'}</div></div>
+      <div class="metric"><div class="label">Marja de Profit ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${v(latest,'I13')>0?(pn(latest)/v(latest,'I13')*100).toFixed(1)+'%':'—'}</div></div>
     </div>`;
 
     // YoY
@@ -332,7 +332,7 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
         {label:'Profit Net',curr:pn(latest),prev:pn(prev)},
         {label:'Salariati',curr:v(latest,'I20'),prev:v(prev,'I20')},
       ];
-      html += `<div class="yoy-bar"><h3>Evolutie: ${prev} → ${latest}</h3>`;
+      html += `<div class="yoy-bar"><h3>Evolutie: ${prev} &rarr; ${latest}</h3>`;
       cmp.forEach(c => {
         if (!c.prev && !c.curr) return;
         const pct = c.prev ? ((c.curr-c.prev)/Math.abs(c.prev))*100 : 0;
@@ -347,7 +347,7 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       html += `<div class="balance-sheet"><table><thead><tr><th colspan="2">Bilant ${year}</th></tr></thead><tbody>${Object.keys(INDICATORS).map(k=>`<tr><td>${INDICATORS[k]}</td><td>${fmtRON(v(year,k))}</td></tr>`).join('')}</tbody></table></div>`;
     });
   } else {
-    html += '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati</div>';
+    html += '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati.</div>';
   }
 
   html += '<div id="similarContainer"></div>';
@@ -359,7 +359,7 @@ function renderSimilar(results) {
   if (!container || !results.length) return;
   container.innerHTML = `
     <div class="similar">
-      <h3>Companii similare (acelasi CAEN + judet)</h3>
+      <h3>Companii similare (acelasi cod CAEN si judet)</h3>
       ${results.map(r => `
         <div class="similar-item" data-cui="${esc(r.cui)}" data-name="${esc(r.denumire)}">
           <div><div class="sim-name">${esc(r.denumire)}</div><div class="sim-meta">${esc(r.localitate||'')}${r.judet?', '+esc(r.judet):''}</div></div>
