@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company Lookup — Romanian Company Financial Data</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --card: #1e2130; --border: #2a2d3a;
+    --text: #e1e4ed; --muted: #8b8fa3; --accent: #6c8cff; --green: #4ade80;
+    --red: #f87171; --yellow: #fbbf24; --orange: #fb923c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+
+  /* Search */
+  .search-box { position: relative; margin-bottom: 8px; }
+  .search-box input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 16px 20px; border-radius: 12px; font-size: 17px; outline: none;
+  }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box input::placeholder { color: var(--muted); }
+  .search-hint { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+  .ac-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+    background: var(--surface); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 12px 12px; max-height: 420px; overflow-y: auto; display: none;
+  }
+  .ac-list.open { display: block; }
+  .ac-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.sel { background: rgba(108,140,255,0.1); }
+  .ac-item .name { font-weight: 600; font-size: 14px; }
+  .ac-item .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .ac-item .meta span { margin-right: 14px; }
+  .ac-hl { color: var(--accent); }
+
+  .year-select { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .year-select label {
+    background: var(--surface); border: 1px solid var(--border); padding: 6px 14px;
+    border-radius: 6px; font-size: 13px; cursor: pointer; user-select: none;
+  }
+  .year-select input:checked + span { color: var(--accent); font-weight: 600; }
+  .year-select input { display: none; }
+
+  /* Status */
+  .status { text-align: center; padding: 24px; color: var(--muted); font-size: 14px; }
+  .status.error { color: var(--red); }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Company profile */
+  .profile-header {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; margin-bottom: 16px;
+  }
+  .profile-header h2 { font-size: 22px; margin-bottom: 8px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 5px; font-size: 11px; font-weight: 700; margin-right: 8px; }
+  .badge-active { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge-inactive { background: rgba(248,113,113,0.15); color: var(--red); }
+  .badge-form { background: rgba(108,140,255,0.15); color: var(--accent); }
+  .badge-size { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-top: 16px; font-size: 13px; }
+  .info-grid .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-grid .value { margin-top: 2px; }
+
+  /* CAEN section */
+  .caen-section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .caen-section h3 { font-size: 14px; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .caen-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .caen-item:last-child { border-bottom: none; }
+  .caen-code { font-weight: 700; color: var(--accent); margin-right: 8px; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric .val { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .metric .val.pos { color: var(--green); }
+  .metric .val.neg { color: var(--red); }
+  .metric .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* YoY */
+  .yoy-bar { margin-bottom: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .yoy-bar h3 { font-size: 14px; margin-bottom: 16px; }
+  .yoy-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .yoy-item .lbl { width: 120px; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .yoy-item .bar-wrap { flex: 1; height: 24px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .yoy-item .bar { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
+  .yoy-item .bar.pos { background: var(--green); }
+  .yoy-item .bar.neg { background: var(--red); }
+  .yoy-item .pct { width: 70px; text-align: right; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
+  /* Balance sheet */
+  .balance-sheet { margin-bottom: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .balance-sheet table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .balance-sheet th { text-align: left; padding: 12px 16px; background: var(--surface); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .balance-sheet td { padding: 10px 16px; border-top: 1px solid var(--border); }
+  .balance-sheet td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .balance-sheet tr:hover { background: rgba(108,140,255,0.05); }
+
+  /* Similar companies */
+  .similar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .similar h3 { font-size: 14px; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .similar-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .similar-item:last-child { border-bottom: none; }
+  .similar-item:hover .sim-name { color: var(--accent); }
+  .sim-name { font-weight: 600; font-size: 13px; }
+  .sim-meta { color: var(--muted); font-size: 12px; }
+
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+
+  @media (max-width: 600px) {
+    .container { padding: 20px 12px; }
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .info-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Company Lookup</h1>
+  <p class="subtitle">Search 4M+ Romanian companies by name or CUI — with live ANAF financial data</p>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Company name or CUI…" autofocus
+           oninput="onInput()" onkeydown="onKey(event)">
+    <div class="ac-list" id="acList"></div>
+  </div>
+  <div class="search-hint">Type at least 2 characters to search by name, or enter a CUI directly</div>
+
+  <div class="year-select">
+    <label><input type="checkbox" value="2021"><span>2021</span></label>
+    <label><input type="checkbox" value="2022"><span>2022</span></label>
+    <label><input type="checkbox" value="2023" checked><span>2023</span></label>
+    <label><input type="checkbox" value="2024" checked><span>2024</span></label>
+  </div>
+
+  <div id="output"></div>
+</div>
+
+<script>
+const INDICATORS = {
+  I1:'Active Imobilizate', I2:'Active Circulante', I3:'Stocuri', I4:'Creante',
+  I5:'Casa si conturi la banci', I6:'Cheltuieli in avans', I7:'Datorii',
+  I8:'Venituri in avans', I9:'Provizioane', I10:'Capitaluri Total',
+  I11:'Capital subscris varsat', I12:'Patrimoniul regiei', I13:'Cifra de afaceri neta',
+  I14:'Venituri Totale', I15:'Cheltuieli Totale', I16:'Profit Brut',
+  I17:'Pierdere Bruta', I18:'Profit Net', I19:'Pierdere Neta', I20:'Nr. Mediu Salariati',
+};
+
+let acIdx = -1, debounceTimer;
+
+function onInput() { clearTimeout(debounceTimer); debounceTimer = setTimeout(doAutocomplete, 250); }
+
+async function doAutocomplete() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q.length < 2) { closeAC(); return; }
+  const list = document.getElementById('acList');
+  list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)"><span class="spinner"></span> Searching…</div></div>';
+  list.classList.add('open');
+  list._results = [];
+  try {
+    const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await resp.json();
+    renderAC(data.results || [], q);
+  } catch { closeAC(); }
+}
+
+function renderAC(results, query) {
+  const list = document.getElementById('acList');
+  if (!results.length) { list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)">No results found</div></div>'; list.classList.add('open'); list._results = []; return; }
+  acIdx = -1;
+  const ql = query.toLowerCase();
+  list.innerHTML = results.map((r, i) => {
+    const statusClass = r.stare === 'funcțiune' ? 'badge-active' : 'badge-inactive';
+    return `<div class="ac-item" data-i="${i}" onmousedown="selectResult(${i})" onmouseenter="acIdx=${i};hlAC()">
+      <div class="name">${highlight(r.denumire||'', ql)} <span class="badge ${statusClass}" style="font-size:10px">${esc(r.stare||'')}</span></div>
+      <div class="meta"><span>CUI: ${esc(r.cui)}</span><span>${esc(r.judet||'')}</span><span>${esc(r.forma_juridica||'')}</span></div>
+    </div>`;
+  }).join('');
+  list.classList.add('open');
+  list._results = results;
+}
+
+function highlight(text, q) {
+  const i = text.toLowerCase().indexOf(q);
+  if (i === -1) return esc(text);
+  return esc(text.slice(0,i))+'<span class="ac-hl">'+esc(text.slice(i,i+q.length))+'</span>'+esc(text.slice(i+q.length));
+}
+function closeAC() { document.getElementById('acList').classList.remove('open'); acIdx = -1; }
+function hlAC() { document.querySelectorAll('.ac-item').forEach((el,i) => el.classList.toggle('sel', i===acIdx)); }
+
+function onKey(e) {
+  const list = document.getElementById('acList');
+  if (!list.classList.contains('open')) return;
+  const results = list._results || [];
+  if (e.key==='ArrowDown') { e.preventDefault(); acIdx=Math.min(acIdx+1,results.length-1); hlAC(); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); acIdx=Math.max(acIdx-1,0); hlAC(); }
+  else if (e.key==='Enter' && acIdx>=0) { e.preventDefault(); selectResult(acIdx); }
+  else if (e.key==='Escape') closeAC();
+}
+
+async function selectResult(idx) {
+  const r = (document.getElementById('acList')._results || [])[idx];
+  if (!r) return;
+  closeAC();
+  document.getElementById('searchInput').value = r.denumire;
+  await loadCompany(r.cui);
+}
+
+async function loadCompany(cui) {
+  const years = [...document.querySelectorAll('.year-select input:checked')].map(c => +c.value).sort();
+  if (!years.length) { show('<div class="status error">Select at least one year</div>'); return; }
+
+  show('<div class="status"><span class="spinner"></span> Loading company profile…</div>');
+
+  // Fetch company details + bilant in parallel
+  const [companyResp, ...bilantResults] = await Promise.allSettled([
+    fetch(`/api/company?cui=${cui}`).then(r => r.json()),
+    ...years.map(y => fetch(`/api/bilant?an=${y}&cui=${cui}`).then(r => r.json()))
+  ]);
+
+  const companyData = companyResp.status === 'fulfilled' ? companyResp.value : null;
+  const company = companyData?.company || {};
+  const caenCodes = companyData?.caen_codes || [];
+
+  const bilant = {};
+  let caenFromBilant = '', denCaenBilant = '';
+  years.forEach((year, i) => {
+    if (bilantResults[i].status === 'fulfilled') {
+      const d = bilantResults[i].value;
+      if (d.i && d.i.length > 0) {
+        bilant[year] = {};
+        d.i.forEach(ind => { bilant[year][ind.indicator] = ind.val_indicator; });
+        if (d.caen) { caenFromBilant = d.caen; denCaenBilant = d.den_caen || ''; }
+      }
+    }
+  });
+
+  renderProfile(cui, company, caenCodes, bilant, years, caenFromBilant, denCaenBilant);
+
+  // Load similar companies in background
+  const mainCaen = caenFromBilant || (caenCodes[0]?.cod_caen);
+  if (mainCaen) {
+    fetch(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
+      .then(r => r.json())
+      .then(d => renderSimilar(d.results || []))
+      .catch(() => {});
+  }
+}
+
+function sizeCategory(revenue, employees) {
+  if (revenue > 8000000 || employees > 50) return 'IMM';
+  if (revenue > 2000000 || employees > 10) return 'intreprindere mica';
+  return 'microintreprindere';
+}
+
+function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
+  const available = years.filter(y => bilant[y]);
+  const latest = available[available.length - 1];
+  const prev = available.length > 1 ? available[available.length - 2] : null;
+  const v = (year, ind) => bilant[year]?.[ind] ?? 0;
+  const pn = year => v(year,'I18') - v(year,'I19');
+
+  const isActive = !co.stare || co.stare === 'funcțiune';
+  const statusBadge = isActive
+    ? '<span class="badge badge-active">ACTIVA</span>'
+    : `<span class="badge badge-inactive">${esc(co.stare||'INACTIVA').toUpperCase()}</span>`;
+
+  const emp = latest ? v(latest, 'I20') : 0;
+  const rev = latest ? v(latest, 'I13') : 0;
+  const size = sizeCategory(rev, emp);
+
+  let html = `
+    <div class="profile-header">
+      <h2>${esc(co.denumire || 'CUI '+cui)}</h2>
+      <div>${statusBadge}<span class="badge badge-form">${esc(co.forma_juridica||'')}</span><span class="badge badge-size">${size}</span></div>
+      <div class="info-grid">
+        <div><div class="label">CUI</div><div class="value">${esc(cui)}</div></div>
+        <div><div class="label">Nr. Reg. Com.</div><div class="value">${esc(co.cod_inmatriculare||'—')}</div></div>
+        <div><div class="label">EUID</div><div class="value">${esc(co.euid||'—')}</div></div>
+        <div><div class="label">Data infiintarii</div><div class="value">${esc(co.data_inmatriculare||'—')}</div></div>
+        <div><div class="label">Judet</div><div class="value">${esc(co.judet||'—')}</div></div>
+        <div><div class="label">Localitate</div><div class="value">${esc(co.localitate||'—')}</div></div>
+        <div><div class="label">Adresa</div><div class="value">${esc(co.adresa||'—')}${co.cod_postal ? ' Cod '+esc(co.cod_postal) : ''}</div></div>
+        <div><div class="label">Website</div><div class="value">${co.web ? `<a href="${co.web.startsWith('http')?'':'https://'}${esc(co.web)}" target="_blank">${esc(co.web)}</a>` : '—'}</div></div>
+      </div>
+    </div>`;
+
+  // CAEN codes
+  if (caenCodes.length || mainCaen) {
+    html += `<div class="caen-section"><h3>Domenii de activitate</h3>`;
+    if (mainCaen) {
+      html += `<div class="caen-item"><span class="caen-code">${esc(mainCaen)}</span> ${esc(denCaen)} <span class="badge badge-form" style="font-size:10px">PREPONDERENT</span></div>`;
+    }
+    caenCodes.forEach(c => {
+      if (c.cod_caen === String(mainCaen)) return;
+      html += `<div class="caen-item"><span class="caen-code">${esc(c.cod_caen)}</span> ${esc(c.denumire||'')}</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Financial metrics
+  if (latest) {
+    html += `<div class="metrics">
+      <div class="metric"><div class="label">Cifra de Afaceri ${latest}</div><div class="val">${fmtRON(v(latest,'I13'))}</div>${prev?`<div class="sub">${prev}: ${fmtRON(v(prev,'I13'))}</div>`:''}</div>
+      <div class="metric"><div class="label">Profit Net ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${fmtRON(pn(latest))}</div>${prev?`<div class="sub">${prev}: ${fmtRON(pn(prev))}</div>`:''}</div>
+      <div class="metric"><div class="label">Nr. Salariati ${latest}</div><div class="val">${v(latest,'I20')||'—'}</div>${prev?`<div class="sub">${prev}: ${v(prev,'I20')||'—'}</div>`:''}</div>
+      <div class="metric"><div class="label">Marja Profit ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${v(latest,'I13')>0?(pn(latest)/v(latest,'I13')*100).toFixed(1)+'%':'—'}</div></div>
+    </div>`;
+
+    // YoY
+    if (prev) {
+      const cmp = [
+        {label:'Cifra Afaceri',curr:v(latest,'I13'),prev:v(prev,'I13')},
+        {label:'Venituri',curr:v(latest,'I14'),prev:v(prev,'I14')},
+        {label:'Cheltuieli',curr:v(latest,'I15'),prev:v(prev,'I15')},
+        {label:'Profit Net',curr:pn(latest),prev:pn(prev)},
+        {label:'Salariati',curr:v(latest,'I20'),prev:v(prev,'I20')},
+      ];
+      html += `<div class="yoy-bar"><h3>Evolutie: ${prev} → ${latest}</h3>`;
+      cmp.forEach(c => {
+        if (!c.prev && !c.curr) return;
+        const pct = c.prev ? ((c.curr-c.prev)/Math.abs(c.prev))*100 : 0;
+        const pos = pct >= 0;
+        html += `<div class="yoy-item"><div class="lbl">${c.label}</div><div class="bar-wrap"><div class="bar ${pos?'pos':'neg'}" style="width:${Math.min(Math.abs(pct),100)}%"></div></div><div class="pct ${pos?'pos':'neg'}">${pos?'+':''}${pct.toFixed(1)}%</div></div>`;
+      });
+      html += '</div>';
+    }
+
+    // Balance sheet tables
+    available.slice().reverse().forEach(year => {
+      html += `<div class="balance-sheet"><table><thead><tr><th colspan="2">Bilant ${year}</th></tr></thead><tbody>${Object.keys(INDICATORS).map(k=>`<tr><td>${INDICATORS[k]}</td><td>${fmtRON(v(year,k))}</td></tr>`).join('')}</tbody></table></div>`;
+    });
+  } else {
+    html += '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati</div>';
+  }
+
+  html += '<div id="similarContainer"></div>';
+  show(html);
+}
+
+function renderSimilar(results) {
+  const container = document.getElementById('similarContainer');
+  if (!container || !results.length) return;
+  container.innerHTML = `
+    <div class="similar">
+      <h3>Companii similare (acelasi CAEN + judet)</h3>
+      ${results.map(r => `
+        <div class="similar-item" data-cui="${esc(r.cui)}" data-name="${esc(r.denumire)}">
+          <div><div class="sim-name">${esc(r.denumire)}</div><div class="sim-meta">${esc(r.localitate||'')}${r.judet?', '+esc(r.judet):''}</div></div>
+          <div class="sim-meta">CUI ${esc(r.cui)}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+document.addEventListener('click', e => {
+  const item = e.target.closest('.similar-item[data-cui]');
+  if (item) { document.getElementById('searchInput').value = item.dataset.name; loadCompany(item.dataset.cui); window.scrollTo(0,0); }
+});
+function show(h) { document.getElementById('output').innerHTML = h; }
+function fmtRON(v) { return v==null||isNaN(v)?'—':Number(v).toLocaleString('ro-RO')+' RON'; }
+function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+document.addEventListener('click', e => { if(!e.target.closest('.search-box')) closeAC(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+name = "company-lookup"
+main = "src/worker.js"
+compatibility_date = "2024-12-01"
+
+[assets]
+directory = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "company-lookup-db"
+database_id = "5e8cc7bc-c66d-467f-b3c3-f82efb938126"

@@ -1,0 +1,9 @@
+# Source data (download from data.gov.ro)
+*.csv
+
+# Generated SQL chunks (rebuild with prepare_d1.py)
+sql_chunks/
+
+# Wrangler state
+.wrangler/
+node_modules/
