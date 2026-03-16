@@ -4,6 +4,9 @@
 # Generated SQL chunks (rebuild with prepare_d1.py)
 sql_chunks/
 
+# Local deployment notes (contains DB IDs)
+DEPLOY.md
+
 # Wrangler state
 .wrangler/
 node_modules/
