@@ -1,8 +1,8 @@
-# Info Firme
+# Cauta Firma
 
-Search 4M+ Romanian companies by name or CUI — with live ANAF financial data. Free, open source, hosted entirely on Cloudflare's free tier.
+Cauta in peste 4 milioane de companii din Romania — cu date financiare ANAF in timp real. Gratuit, open source, gazduit integral pe Cloudflare (free tier).
 
-**Live:** https://company-lookup.razvan-dimescu.workers.dev
+**Live:** https://cauta-firma.ro
 
 ## Stack
 
