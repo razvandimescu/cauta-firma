@@ -186,9 +186,8 @@ function renderAC(results, query) {
   acIdx = -1;
   const ql = query.toLowerCase();
   list.innerHTML = results.map((r, i) => {
-    const statusClass = r.stare === 'funcțiune' ? 'badge-active' : 'badge-inactive';
     return `<div class="ac-item" data-i="${i}" onmousedown="selectResult(${i})" onmouseenter="acIdx=${i};hlAC()">
-      <div class="name">${highlight(r.denumire||'', ql)} <span class="badge ${statusClass}" style="font-size:10px">${esc(r.stare||'')}</span></div>
+      <div class="name">${highlight(r.denumire||'', ql)}</div>
       <div class="meta"><span>CUI: ${esc(r.cui)}</span><span>${esc(r.judet||'')}</span><span>${esc(r.forma_juridica||'')}</span></div>
     </div>`;
   }).join('');

@@ -16,28 +16,31 @@ async function handleSearch(url, env) {
   if (q.length < 2) return json({ results: [] });
 
   const isNumeric = /^\d+$/.test(q);
-  let results;
 
   if (isNumeric) {
-    results = await env.DB.prepare(
-      `SELECT f.denumire, f.cui, f.cod_inmatriculare, f.forma_juridica, f.judet, f.localitate,
-              ns.denumire as stare
-       FROM firme f
-       LEFT JOIN stare_firma sf ON sf.cod_inmatriculare = f.cod_inmatriculare
-       LEFT JOIN n_stare ns ON ns.cod = sf.cod
-       WHERE f.cui = ?1
-       LIMIT 10`
+    // CUI lookup — exact match on index, fast
+    const results = await env.DB.prepare(
+      `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
+       FROM firme WHERE cui = ?1 LIMIT 10`
     ).bind(q).all();
-  } else {
+    return json({ results: results.results });
+  }
+
+  // Uppercase for index-friendly comparison (ONRC data is uppercase)
+  const upper = q.toUpperCase();
+
+  // Try prefix search first (uses B-tree index on denumire)
+  let results = await env.DB.prepare(
+    `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
+     FROM firme WHERE denumire LIKE ?1 ORDER BY denumire LIMIT 10`
+  ).bind(`${upper}%`).all();
+
+  // Fall back to contains search only if prefix returns too few
+  if (results.results.length < 5) {
     results = await env.DB.prepare(
-      `SELECT f.denumire, f.cui, f.cod_inmatriculare, f.forma_juridica, f.judet, f.localitate,
-              ns.denumire as stare
-       FROM firme f
-       LEFT JOIN stare_firma sf ON sf.cod_inmatriculare = f.cod_inmatriculare
-       LEFT JOIN n_stare ns ON ns.cod = sf.cod
-       WHERE f.denumire LIKE ?1
-       ORDER BY f.denumire LIMIT 10`
-    ).bind(`%${q}%`).all();
+      `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
+       FROM firme WHERE denumire LIKE ?1 ORDER BY denumire LIMIT 10`
+    ).bind(`%${upper}%`).all();
   }
 
   return json({ results: results.results });
@@ -74,6 +77,7 @@ async function handleSimilar(url, env) {
   const judet = url.searchParams.get('judet');
   if (!caen) return json({ results: [] });
 
+  // Drop ORDER BY RANDOM() — just take first 8 matching rows
   const results = await env.DB.prepare(
     `SELECT f.denumire, f.cui, f.judet, f.localitate, f.forma_juridica
      FROM firme f
@@ -83,7 +87,6 @@ async function handleSimilar(url, env) {
        AND f.cui != ?2
        AND (sf.cod IS NULL OR sf.cod = 1048)
        ${judet ? 'AND f.judet = ?3' : ''}
-     ORDER BY RANDOM()
      LIMIT 8`
   ).bind(...(judet ? [caen, cui || '', judet] : [caen, cui || ''])).all();
 
