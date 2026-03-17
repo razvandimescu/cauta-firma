@@ -4,51 +4,80 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cauta Firma — Date financiare pentru companiile din Romania</title>
+<meta name="description" content="Cauta in peste 4 milioane de companii din Romania cu date financiare ANAF in timp real. Gratuit si open source.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1117; --surface: #1a1d27; --card: #1e2130; --border: #2a2d3a;
-    --text: #e1e4ed; --muted: #8b8fa3; --accent: #6c8cff; --green: #4ade80;
-    --red: #f87171; --yellow: #fbbf24; --orange: #fb923c;
+    --bg: #0c1018; --surface: #151a24; --card: #1a2030; --border: #252d3a;
+    --text: #e1e4ed; --muted: #7b8194; --accent: #2dd4bf; --accent-dim: rgba(45,212,191,0.08);
+    --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --orange: #fb923c;
+    --font-heading: 'JetBrains Mono', monospace;
+    --font-body: 'DM Sans', sans-serif;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
   .container { max-width: 860px; margin: 0 auto; padding: 40px 20px; }
-  h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+
+  /* Hero */
+  h1 {
+    font-family: var(--font-heading); font-size: 22px; font-weight: 700;
+    margin-bottom: 4px; letter-spacing: -0.3px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .subtitle {
+    color: var(--muted); font-size: 14px; margin-bottom: 32px;
+    animation: fadeUp 0.5s ease 0.05s both;
+  }
 
   /* Search */
-  .search-box { position: relative; margin-bottom: 8px; }
+  .search-box {
+    position: relative; margin-bottom: 8px;
+    animation: fadeUp 0.5s ease 0.1s both;
+  }
   .search-box input {
     width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
-    padding: 16px 20px; border-radius: 12px; font-size: 17px; outline: none;
+    padding: 16px 20px; border-radius: 12px; font-family: var(--font-body); font-size: 17px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
   }
-  .search-box input:focus { border-color: var(--accent); }
+  .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,212,191,0.1); }
   .search-box input::placeholder { color: var(--muted); }
-  .search-hint { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .search-hint {
+    font-family: var(--font-heading); font-size: 11px; color: var(--muted);
+    margin-bottom: 20px; letter-spacing: 0.2px;
+    animation: fadeUp 0.5s ease 0.15s both;
+  }
 
   .ac-list {
     position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
     background: var(--surface); border: 1px solid var(--border); border-top: none;
     border-radius: 0 0 12px 12px; max-height: 420px; overflow-y: auto; display: none;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
   }
   .ac-list.open { display: block; }
   .ac-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
   .ac-item:last-child { border-bottom: none; }
-  .ac-item:hover, .ac-item.sel { background: rgba(108,140,255,0.1); }
+  .ac-item:hover, .ac-item.sel { background: var(--accent-dim); }
   .ac-item .name { font-weight: 600; font-size: 14px; }
-  .ac-item .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .ac-item .meta { font-family: var(--font-heading); color: var(--muted); font-size: 11px; margin-top: 3px; }
   .ac-item .meta span { margin-right: 14px; }
   .ac-hl { color: var(--accent); }
 
-  .year-select { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .year-select {
+    display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;
+    animation: fadeUp 0.5s ease 0.2s both;
+  }
   .year-select label {
     background: var(--surface); border: 1px solid var(--border); padding: 6px 14px;
-    border-radius: 6px; font-size: 13px; cursor: pointer; user-select: none;
+    border-radius: 6px; font-family: var(--font-heading); font-size: 12px;
+    cursor: pointer; user-select: none; transition: border-color 0.15s;
   }
-  .year-select input:checked + span { color: var(--accent); font-weight: 600; }
+  .year-select label:hover { border-color: var(--accent); }
+  .year-select input:checked + span { color: var(--accent); font-weight: 700; }
   .year-select input { display: none; }
 
   /* Status */
@@ -57,20 +86,43 @@
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Staggered profile sections */
+  #output > * { animation: fadeUp 0.35s ease both; }
+  #output > *:nth-child(1) { animation-delay: 0s; }
+  #output > *:nth-child(2) { animation-delay: 0.06s; }
+  #output > *:nth-child(3) { animation-delay: 0.12s; }
+  #output > *:nth-child(4) { animation-delay: 0.18s; }
+  #output > *:nth-child(5) { animation-delay: 0.24s; }
+  #output > *:nth-child(6) { animation-delay: 0.30s; }
+  #output > *:nth-child(7) { animation-delay: 0.36s; }
+  #output > *:nth-child(8) { animation-delay: 0.42s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   /* Company profile */
   .profile-header {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 24px; margin-bottom: 16px;
   }
-  .profile-header h2 { font-size: 22px; margin-bottom: 8px; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 5px; font-size: 11px; font-weight: 700; margin-right: 8px; }
+  .profile-header h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 5px;
+    font-family: var(--font-heading); font-size: 10px; font-weight: 700;
+    margin-right: 8px; letter-spacing: 0.3px;
+  }
   .badge-active { background: rgba(74,222,128,0.15); color: var(--green); }
   .badge-inactive { background: rgba(248,113,113,0.15); color: var(--red); }
-  .badge-form { background: rgba(108,140,255,0.15); color: var(--accent); }
+  .badge-form { background: var(--accent-dim); color: var(--accent); }
   .badge-size { background: rgba(251,191,36,0.15); color: var(--yellow); }
 
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-top: 16px; font-size: 13px; }
-  .info-grid .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-grid .label {
+    font-family: var(--font-heading); color: var(--muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
   .info-grid .value { margin-top: 2px; }
 
   /* CAEN section */
@@ -78,70 +130,116 @@
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 20px 24px; margin-bottom: 16px;
   }
-  .caen-section h3 { font-size: 14px; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .caen-section h3 {
+    font-family: var(--font-heading); font-size: 11px; margin-bottom: 12px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+  }
   .caen-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .caen-item:last-child { border-bottom: none; }
-  .caen-code { font-weight: 700; color: var(--accent); margin-right: 8px; }
+  .caen-code { font-family: var(--font-heading); font-weight: 700; color: var(--accent); margin-right: 8px; }
 
   /* Metrics */
   .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .metric .val { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .metric {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; transition: border-color 0.2s;
+  }
+  .metric:hover { border-color: var(--accent); }
+  .metric .label {
+    font-family: var(--font-heading); font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .metric .val {
+    font-family: var(--font-heading); font-size: 22px; font-weight: 700;
+    margin-top: 6px; font-variant-numeric: tabular-nums;
+  }
   .metric .val.pos { color: var(--green); }
   .metric .val.neg { color: var(--red); }
-  .metric .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .metric .sub { font-family: var(--font-heading); font-size: 11px; color: var(--muted); margin-top: 4px; }
 
   /* YoY */
   .yoy-bar { margin-bottom: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-  .yoy-bar h3 { font-size: 14px; margin-bottom: 16px; }
+  .yoy-bar h3 { font-family: var(--font-heading); font-size: 13px; margin-bottom: 16px; letter-spacing: -0.2px; }
   .yoy-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .yoy-item .lbl { width: 120px; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .yoy-item .lbl { width: 120px; font-family: var(--font-heading); font-size: 11px; color: var(--muted); flex-shrink: 0; }
   .yoy-item .bar-wrap { flex: 1; height: 24px; background: var(--bg); border-radius: 4px; overflow: hidden; }
-  .yoy-item .bar { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.4s; }
+  .yoy-item .bar { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.6s ease; }
   .yoy-item .bar.pos { background: var(--green); }
   .yoy-item .bar.neg { background: var(--red); }
-  .yoy-item .pct { width: 70px; text-align: right; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .yoy-item .pct {
+    width: 70px; text-align: right; font-family: var(--font-heading);
+    font-size: 13px; font-weight: 700; flex-shrink: 0; font-variant-numeric: tabular-nums;
+  }
 
   /* Balance sheet */
   .balance-sheet { margin-bottom: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
   .balance-sheet table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .balance-sheet th { text-align: left; padding: 12px 16px; background: var(--surface); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .balance-sheet th {
+    text-align: left; padding: 12px 16px; background: var(--surface);
+    font-family: var(--font-heading); color: var(--muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
   .balance-sheet td { padding: 10px 16px; border-top: 1px solid var(--border); }
-  .balance-sheet td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
-  .balance-sheet tr:hover { background: rgba(108,140,255,0.05); }
+  .balance-sheet td:last-child {
+    text-align: right; font-family: var(--font-heading);
+    font-variant-numeric: tabular-nums; font-weight: 500;
+  }
+  .balance-sheet tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+  .balance-sheet tr:hover { background: var(--accent-dim); }
 
   /* Similar companies */
   .similar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
-  .similar h3 { font-size: 14px; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-  .similar-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .similar h3 {
+    font-family: var(--font-heading); font-size: 11px; margin-bottom: 12px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+  }
+  .similar-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+    transition: padding-left 0.15s;
+  }
   .similar-item:last-child { border-bottom: none; }
+  .similar-item:hover { padding-left: 4px; }
   .similar-item:hover .sim-name { color: var(--accent); }
-  .sim-name { font-weight: 600; font-size: 13px; }
-  .sim-meta { color: var(--muted); font-size: 12px; }
+  .sim-name { font-weight: 600; font-size: 13px; transition: color 0.15s; }
+  .sim-meta { font-family: var(--font-heading); color: var(--muted); font-size: 11px; }
 
   .pos { color: var(--green); }
   .neg { color: var(--red); }
 
-  /* Extras GPT banner */
+  /* Extras GPT CTA */
   .promo {
-    background: linear-gradient(135deg, rgba(108,140,255,0.08), rgba(74,222,128,0.06));
-    border: 1px solid var(--border); border-radius: 10px;
-    padding: 16px 20px; margin-bottom: 16px; display: flex;
-    align-items: center; justify-content: space-between; gap: 16px;
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #1a2438 0%, #1e2a3a 100%);
+    border: 1px solid #2dd4bf40; border-radius: 12px;
+    padding: 28px 28px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
   }
-  .promo-text { font-size: 13px; color: var(--muted); }
-  .promo-text strong { color: var(--text); }
+  .promo::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(45,212,191,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .promo-text { font-size: 14px; color: var(--muted); line-height: 1.6; position: relative; }
+  .promo-text strong { color: var(--text); font-size: 16px; display: block; margin-bottom: 4px; }
   .promo-link {
-    flex-shrink: 0; padding: 8px 16px; background: var(--accent); color: var(--bg);
-    font-size: 12px; font-weight: 700; border-radius: 6px; white-space: nowrap;
+    flex-shrink: 0; padding: 12px 24px; background: var(--accent); color: var(--bg);
+    font-family: var(--font-heading); font-size: 13px; font-weight: 700;
+    border-radius: 8px; white-space: nowrap; position: relative;
+    transition: box-shadow 0.25s, transform 0.15s; letter-spacing: 0.3px;
   }
-  .promo-link:hover { text-decoration: none; opacity: 0.9; }
+  .promo-link:hover { text-decoration: none; box-shadow: 0 0 24px rgba(45,212,191,0.3); transform: translateY(-1px); }
 
   @media (max-width: 600px) {
     .container { padding: 20px 12px; }
     .metrics { grid-template-columns: 1fr 1fr; }
     .info-grid { grid-template-columns: 1fr; }
+    .promo { flex-direction: column; text-align: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; }
   }
 </style>
 </head>
@@ -242,7 +340,6 @@ async function loadCompany(cui) {
 
   show('<div class="status"><span class="spinner"></span> Se incarca profilul companiei…</div>');
 
-  // Fetch company details + bilant in parallel
   const [companyResp, ...bilantResults] = await Promise.allSettled([
     fetch(`/api/company?cui=${cui}`).then(r => r.json()),
     ...years.map(y => fetch(`/api/bilant?an=${y}&cui=${cui}`).then(r => r.json()))
@@ -267,7 +364,6 @@ async function loadCompany(cui) {
 
   renderProfile(cui, company, caenCodes, bilant, years, caenFromBilant, denCaenBilant);
 
-  // Load similar companies in background
   const mainCaen = caenFromBilant || (caenCodes[0]?.cod_caen);
   if (mainCaen) {
     fetch(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
@@ -315,7 +411,6 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       </div>
     </div>`;
 
-  // CAEN codes
   if (caenCodes.length || mainCaen) {
     html += `<div class="caen-section"><h3>Domenii de activitate</h3>`;
     if (mainCaen) {
@@ -328,7 +423,6 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
     html += '</div>';
   }
 
-  // Financial metrics
   if (latest) {
     html += `<div class="metrics">
       <div class="metric"><div class="label">Cifra de Afaceri ${latest}</div><div class="val">${fmtRON(v(latest,'I13'))}</div>${prev?`<div class="sub">${prev}: ${fmtRON(v(prev,'I13'))}</div>`:''}</div>
@@ -337,7 +431,6 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       <div class="metric"><div class="label">Marja de Profit ${latest}</div><div class="val ${pn(latest)>=0?'pos':'neg'}">${v(latest,'I13')>0?(pn(latest)/v(latest,'I13')*100).toFixed(1)+'%':'—'}</div></div>
     </div>`;
 
-    // YoY
     if (prev) {
       const cmp = [
         {label:'Cifra Afaceri',curr:v(latest,'I13'),prev:v(prev,'I13')},
@@ -356,7 +449,6 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       html += '</div>';
     }
 
-    // Balance sheet tables
     available.slice().reverse().forEach(year => {
       html += `<div class="balance-sheet"><table><thead><tr><th colspan="2">Bilant ${year}</th></tr></thead><tbody>${Object.keys(INDICATORS).map(k=>`<tr><td>${INDICATORS[k]}</td><td>${fmtRON(v(year,k))}</td></tr>`).join('')}</tbody></table></div>`;
     });
@@ -366,8 +458,8 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
 
   html += '<div id="similarContainer"></div>';
   html += `<div class="promo">
-    <div class="promo-text"><strong>Esti contabil?</strong> Automatizeaza clasificarea extraselor bancare — 9 banci, coduri contabile sugerate de AI, export Saga.</div>
-    <a class="promo-link" href="https://extrasgpt.ro" target="_blank">Extras GPT</a>
+    <div class="promo-text"><strong>Esti contabil?</strong>Automatizeaza clasificarea extraselor bancare — 9 banci, coduri contabile sugerate de AI, export Saga.</div>
+    <a class="promo-link" href="https://extrasgpt.ro" target="_blank">Extras GPT &rarr;</a>
   </div>`;
   show(html);
 }
