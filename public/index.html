@@ -123,6 +123,21 @@
   .pos { color: var(--green); }
   .neg { color: var(--red); }
 
+  /* Extras GPT banner */
+  .promo {
+    background: linear-gradient(135deg, rgba(108,140,255,0.08), rgba(74,222,128,0.06));
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 16px; display: flex;
+    align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .promo-text { font-size: 13px; color: var(--muted); }
+  .promo-text strong { color: var(--text); }
+  .promo-link {
+    flex-shrink: 0; padding: 8px 16px; background: var(--accent); color: var(--bg);
+    font-size: 12px; font-weight: 700; border-radius: 6px; white-space: nowrap;
+  }
+  .promo-link:hover { text-decoration: none; opacity: 0.9; }
+
   @media (max-width: 600px) {
     .container { padding: 20px 12px; }
     .metrics { grid-template-columns: 1fr 1fr; }
@@ -350,6 +365,10 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
   }
 
   html += '<div id="similarContainer"></div>';
+  html += `<div class="promo">
+    <div class="promo-text"><strong>Esti contabil?</strong> Automatizeaza clasificarea extraselor bancare — 9 banci, coduri contabile sugerate de AI, export Saga.</div>
+    <a class="promo-link" href="https://extras-gpt.ro" target="_blank">Extras GPT</a>
+  </div>`;
   show(html);
 }
 
