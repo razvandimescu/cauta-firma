@@ -5,6 +5,7 @@ export default {
     if (url.pathname === '/api/search') return handleSearch(url, env);
     if (url.pathname === '/api/company') return handleCompany(url, env);
     if (url.pathname === '/api/bilant') return handleBilant(url);
+    if (url.pathname === '/api/anaf') return handleAnaf(url);
     if (url.pathname === '/api/similar') return handleSimilar(url, env);
 
     return env.ASSETS.fetch(request);
@@ -91,6 +92,37 @@ async function handleSimilar(url, env) {
   ).bind(...(judet ? [caen, cui || '', judet] : [caen, cui || ''])).all();
 
   return json({ results: results.results });
+}
+
+async function handleAnaf(url) {
+  const cui = url.searchParams.get('cui');
+  if (!cui) return json({ error: 'Missing cui' }, 400);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const target = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(target, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        body: JSON.stringify([{ cui: parseInt(cui), data: today }]),
+      });
+      if (resp.status === 520 || resp.status === 502 || resp.status === 404) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      const data = await resp.json();
+      const found = data.found?.[0] || null;
+      return json({ data: found });
+    } catch (e) {
+      if (attempt === 2) return json({ error: e.message }, 502);
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    }
+  }
+  return json({ error: 'ANAF unreachable' }, 502);
 }
 
 async function handleBilant(url) {

@@ -36,7 +36,7 @@
 
   /* Search */
   .search-box {
-    position: relative; margin-bottom: 8px;
+    position: relative; margin-bottom: 8px; z-index: 50;
     animation: fadeUp 0.5s ease 0.1s both;
   }
   .search-box input {
@@ -48,20 +48,20 @@
   .search-box input::placeholder { color: var(--muted); }
   .search-hint {
     font-family: var(--font-heading); font-size: 11px; color: var(--muted);
-    margin-bottom: 20px; letter-spacing: 0.2px;
+    margin-bottom: 20px; letter-spacing: 0.2px; position: relative; z-index: 1;
     animation: fadeUp 0.5s ease 0.15s both;
   }
 
   .ac-list {
     position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
-    background: var(--surface); border: 1px solid var(--border); border-top: none;
+    background: #151a24; border: 1px solid var(--border); border-top: none;
     border-radius: 0 0 12px 12px; max-height: 420px; overflow-y: auto; display: none;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
   }
   .ac-list.open { display: block; }
   .ac-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; }
   .ac-item:last-child { border-bottom: none; }
-  .ac-item:hover, .ac-item.sel { background: var(--accent-dim); }
+  .ac-item:hover, .ac-item.sel { background: #1e2a36; }
   .ac-item .name { font-weight: 600; font-size: 14px; }
   .ac-item .meta { font-family: var(--font-heading); color: var(--muted); font-size: 11px; margin-top: 3px; }
   .ac-item .meta span { margin-right: 14px; }
@@ -69,6 +69,7 @@
 
   .year-select {
     display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;
+    position: relative; z-index: 1;
     animation: fadeUp 0.5s ease 0.2s both;
   }
   .year-select label {
@@ -364,6 +365,12 @@ async function loadCompany(cui) {
 
   renderProfile(cui, company, caenCodes, bilant, years, caenFromBilant, denCaenBilant);
 
+  // Load ANAF TVA data + similar companies in background
+  fetch(`/api/anaf?cui=${cui}`)
+    .then(r => r.json())
+    .then(d => { if (d.data) renderAnafInfo(d.data); })
+    .catch(() => {});
+
   const mainCaen = caenFromBilant || (caenCodes[0]?.cod_caen);
   if (mainCaen) {
     fetch(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
@@ -402,7 +409,7 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       <div class="info-grid">
         <div><div class="label">CUI</div><div class="value">${esc(cui)}</div></div>
         <div><div class="label">Nr. Inmatriculare</div><div class="value">${esc(co.cod_inmatriculare||'—')}</div></div>
-        <div><div class="label">EUID</div><div class="value">${esc(co.euid||'—')}</div></div>
+        <div><div class="label">EUID</div><div class="value">${co.euid ? `<a href="https://e-justice.europa.eu/489/EN/business_registers__search_for_a_company_in_the_eu?ESSION_ID=${esc(co.euid)}" target="_blank">${esc(co.euid)}</a>` : '—'}</div></div>
         <div><div class="label">Data infiintarii</div><div class="value">${esc(co.data_inmatriculare||'—')}</div></div>
         <div><div class="label">Judet</div><div class="value">${esc(co.judet||'—')}</div></div>
         <div><div class="label">Localitate</div><div class="value">${esc(co.localitate||'—')}</div></div>
@@ -456,12 +463,37 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
     html += '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati.</div>';
   }
 
+  html += '<div id="anafContainer"></div>';
   html += '<div id="similarContainer"></div>';
   html += `<div class="promo">
     <div class="promo-text"><strong>Esti contabil?</strong>Automatizeaza clasificarea extraselor bancare — 9 banci, coduri contabile sugerate de AI, export Saga.</div>
     <a class="promo-link" href="https://extrasgpt.ro" target="_blank">Extras GPT &rarr;</a>
   </div>`;
   show(html);
+}
+
+function renderAnafInfo(d) {
+  const container = document.getElementById('anafContainer');
+  if (!container) return;
+  const g = d.date_generale || {};
+  const tva = d.inregistrare_scop_Tva || {};
+  const inactiv = d.stare_inactiv || {};
+  const items = [];
+  if (g.telefon) items.push(['Telefon', `<a href="tel:${esc(g.telefon)}">${esc(g.telefon)}</a>`]);
+  if (g.fax) items.push(['Fax', esc(g.fax)]);
+  if (g.organFiscalCompetent) items.push(['Organ fiscal', esc(g.organFiscalCompetent)]);
+  if (g.forma_de_proprietate) items.push(['Forma proprietate', esc(g.forma_de_proprietate)]);
+  items.push(['Platitor TVA', tva.scpTVA ? '<span class="badge badge-active">DA</span>' : '<span class="badge badge-inactive">NU</span>']);
+  if (tva.perioade_TVA?.length) {
+    const p = tva.perioade_TVA[0];
+    if (p.data_inceput_ScpTVA) items.push(['TVA din', esc(p.data_inceput_ScpTVA)]);
+  }
+  if (g.statusRO_e_Factura) items.push(['e-Factura', '<span class="badge badge-active">ACTIV</span>' + (g.data_inreg_Reg_RO_e_Factura ? ' din ' + esc(g.data_inreg_Reg_RO_e_Factura) : '')]);
+  if (d.inregistrare_SplitTVA?.statusSplitTVA) items.push(['Split TVA', '<span class="badge badge-active">DA</span>']);
+  if (inactiv.dataInactivare && !inactiv.dataReactivare) items.push(['Inactiv din', esc(inactiv.dataInactivare)]);
+  if (g.iban) items.push(['IBAN', esc(g.iban)]);
+  if (!items.length) return;
+  container.innerHTML = `<div class="caen-section"><h3>Date ANAF</h3><div class="info-grid">${items.map(([l,v])=>`<div><div class="label">${l}</div><div class="value">${v}</div></div>`).join('')}</div></div>`;
 }
 
 function renderSimilar(results) {
