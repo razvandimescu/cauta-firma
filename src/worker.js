@@ -1,16 +1,33 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
-
-    if (url.pathname === '/api/search') return handleSearch(url, env);
-    if (url.pathname === '/api/company') return handleCompany(url, env);
-    if (url.pathname === '/api/bilant') return handleBilant(url);
-    if (url.pathname === '/api/anaf') return handleAnaf(url);
-    if (url.pathname === '/api/similar') return handleSimilar(url, env);
-
-    return env.ASSETS.fetch(request);
+    const handler = routes[url.pathname];
+    if (!handler) return env.ASSETS.fetch(request);
+    return cached(request, ctx, () => handler(url, env));
   }
 };
+
+const routes = {
+  '/api/search': handleSearch,
+  '/api/company': handleCompany,
+  '/api/bilant': handleBilant,
+  '/api/anaf': handleAnaf,
+  '/api/similar': handleSimilar,
+};
+
+// Edge cache keyed on the full URL; repeated and crawler queries never reach D1
+async function cached(request, ctx, produce) {
+  const cache = caches.default;
+  const hit = await cache.match(request);
+  if (hit) return hit;
+
+  const response = await produce();
+  if (response.status === 200) {
+    response.headers.set('Cache-Control', 'public, max-age=3600');
+    ctx.waitUntil(cache.put(request, response.clone()));
+  }
+  return response;
+}
 
 async function handleSearch(url, env) {
   const q = (url.searchParams.get('q') || '').trim();
@@ -30,11 +47,11 @@ async function handleSearch(url, env) {
   // Uppercase for index-friendly comparison (ONRC data is uppercase)
   const upper = q.toUpperCase();
 
-  // Try prefix search first (uses B-tree index on denumire)
+  // Prefix as a range: LIKE is case-insensitive and cannot use the binary-collated index
   let results = await env.DB.prepare(
     `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
-     FROM firme WHERE denumire LIKE ?1 ORDER BY denumire LIMIT 10`
-  ).bind(`${upper}%`).all();
+     FROM firme WHERE denumire >= ?1 AND denumire < ?2 ORDER BY denumire LIMIT 10`
+  ).bind(upper, upper + '\uffff').all();
 
   // Fall back to contains search only if prefix returns too few
   if (results.results.length < 5) {
