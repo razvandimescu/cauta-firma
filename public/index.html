@@ -295,6 +295,7 @@ async function doAutocomplete() {
   try {
     const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: acAbort.signal });
     const data = await resp.json();
+    if (!resp.ok) { list.innerHTML = `<div class="ac-item"><div class="name" style="color:var(--muted)">${esc(data.error || 'Eroare')}</div></div>`; return; }
     renderAC(data.results || [], q);
   } catch (e) { if (e.name !== 'AbortError') closeAC(); }
 }
@@ -355,6 +356,7 @@ async function loadCompany(cui) {
   // Render the registry data as soon as D1 answers; ANAF is slower and fills in afterwards
   const companyData = await get(`/api/company?cui=${cui}`);
   if (seq !== loadSeq) return;
+  if (!companyData || companyData.error) { show(`<div class="status error">${esc(companyData?.error || 'Compania nu a putut fi incarcata')}</div>`); return; }
   const company = companyData?.company || {};
   const caenCodes = companyData?.caen_codes || [];
   renderProfile(cui, company, caenCodes, {}, years, '', '', true);

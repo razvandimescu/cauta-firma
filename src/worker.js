@@ -21,7 +21,7 @@ async function cached(request, ctx, produce) {
   const hit = await cache.match(request);
   if (hit) return hit;
 
-  const response = await produce();
+  const response = await produce().catch(unavailable);
   if (response.status === 200) {
     if (!response.headers.has('Cache-Control')) response.headers.set('Cache-Control', 'public, max-age=3600');
     ctx.waitUntil(cache.put(request, response.clone()));
@@ -157,6 +157,12 @@ async function handleBilant(url) {
     }
   }
   return json({ error: 'ANAF unreachable after 3 attempts' }, 502);
+}
+
+// D1 throws when the account's daily free-tier quota is exhausted; answer 503 instead of crashing
+function unavailable(e) {
+  console.error(e.message);
+  return json({ error: 'Serviciu temporar indisponibil' }, 503, { 'Retry-After': '3600' });
 }
 
 function json(data, status = 200, headers = {}) {
