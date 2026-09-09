@@ -48,18 +48,10 @@ async function handleSearch(url, env) {
   const upper = q.toUpperCase();
 
   // Prefix as a range: LIKE is case-insensitive and cannot use the binary-collated index
-  let results = await env.DB.prepare(
+  const results = await env.DB.prepare(
     `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
      FROM firme WHERE denumire >= ?1 AND denumire < ?2 ORDER BY denumire LIMIT 10`
   ).bind(upper, upper + '\uffff').all();
-
-  // Fall back to contains search only if prefix returns too few
-  if (results.results.length < 5) {
-    results = await env.DB.prepare(
-      `SELECT denumire, cui, cod_inmatriculare, forma_juridica, judet, localitate
-       FROM firme WHERE denumire LIKE ?1 ORDER BY denumire LIMIT 10`
-    ).bind(`%${upper}%`).all();
-  }
 
   return json({ results: results.results });
 }

@@ -7,6 +7,9 @@ sql_chunks/
 # Local deployment notes (contains DB IDs)
 DEPLOY.md
 
+# Local docs (research, planning)
+docs/
+
 # Wrangler state
 .wrangler/
 node_modules/
