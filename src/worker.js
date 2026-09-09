@@ -23,7 +23,7 @@ async function cached(request, ctx, produce) {
 
   const response = await produce();
   if (response.status === 200) {
-    response.headers.set('Cache-Control', 'public, max-age=3600');
+    if (!response.headers.has('Cache-Control')) response.headers.set('Cache-Control', 'public, max-age=3600');
     ctx.waitUntil(cache.put(request, response.clone()));
   }
   return response;
@@ -61,12 +61,7 @@ async function handleCompany(url, env) {
   if (!cui) return json({ error: 'Missing cui' }, 400);
 
   const company = await env.DB.prepare(
-    `SELECT f.*, ns.denumire as stare
-     FROM firme f
-     LEFT JOIN stare_firma sf ON sf.cod_inmatriculare = f.cod_inmatriculare
-     LEFT JOIN n_stare ns ON ns.cod = sf.cod
-     WHERE f.cui = ?1
-     LIMIT 1`
+    `SELECT * FROM firme WHERE cui = ?1 LIMIT 1`
   ).bind(cui).first();
 
   if (!company) return json({ error: 'Not found' }, 404);
@@ -92,10 +87,9 @@ async function handleSimilar(url, env) {
     `SELECT f.denumire, f.cui, f.judet, f.localitate, f.forma_juridica
      FROM firme f
      JOIN caen_autorizat ca ON ca.cod_inmatriculare = f.cod_inmatriculare
-     LEFT JOIN stare_firma sf ON sf.cod_inmatriculare = f.cod_inmatriculare
      WHERE ca.cod_caen = ?1
        AND f.cui != ?2
-       AND (sf.cod IS NULL OR sf.cod = 1048)
+       AND (f.stare IS NULL OR f.stare = 'funcțiune')
        ${judet ? 'AND f.judet = ?3' : ''}
      LIMIT 8`
   ).bind(...(judet ? [caen, cui || '', judet] : [caen, cui || ''])).all();
@@ -153,10 +147,10 @@ async function handleBilant(url) {
         await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
         continue;
       }
-      const data = await resp.text();
-      return new Response(data, {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      const data = await resp.json();
+      // Filed statements never change; unfiled ones keep the default short TTL
+      const filed = data.i?.length > 0;
+      return json(data, 200, filed ? { 'Cache-Control': 'public, max-age=2592000' } : {});
     } catch (e) {
       if (attempt === 2) return json({ error: e.message }, 502);
       await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
@@ -165,9 +159,9 @@ async function handleBilant(url) {
   return json({ error: 'ANAF unreachable after 3 attempts' }, 502);
 }
 
-function json(data, status = 200) {
+function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', ...headers }
   });
 }

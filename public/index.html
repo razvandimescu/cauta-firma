@@ -5,10 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cauta Firma — Date financiare pentru companiile din Romania</title>
 <meta name="description" content="Cauta in peste 4 milioane de companii din Romania cu date financiare ANAF in timp real. Gratuit si open source.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/fonts/dm-sans-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 600; font-display: swap; src: url(/fonts/dm-sans-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap; src: url(/fonts/jetbrains-mono-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500 700; font-display: swap; src: url(/fonts/jetbrains-mono-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   :root {
     --bg: #0c1018; --surface: #151a24; --card: #1a2030; --border: #252d3a;
     --text: #e1e4ed; --muted: #7b8194; --accent: #2dd4bf; --accent-dim: rgba(45,212,191,0.08);
@@ -276,7 +279,7 @@ const INDICATORS = {
   I17:'Pierdere brută', I18:'Profit net', I19:'Pierdere netă', I20:'Nr. mediu salariați',
 };
 
-let acIdx = -1, debounceTimer;
+let acIdx = -1, debounceTimer, acAbort, loadSeq = 0;
 
 function onInput() { clearTimeout(debounceTimer); debounceTimer = setTimeout(doAutocomplete, 250); }
 
@@ -287,11 +290,13 @@ async function doAutocomplete() {
   list.innerHTML = '<div class="ac-item"><div class="name" style="color:var(--muted)"><span class="spinner"></span> Se cauta…</div></div>';
   list.classList.add('open');
   list._results = [];
+  acAbort?.abort();
+  acAbort = new AbortController();
   try {
-    const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: acAbort.signal });
     const data = await resp.json();
     renderAC(data.results || [], q);
-  } catch { closeAC(); }
+  } catch (e) { if (e.name !== 'AbortError') closeAC(); }
 }
 
 function renderAC(results, query) {
@@ -339,44 +344,38 @@ async function loadCompany(cui) {
   const years = [...document.querySelectorAll('.year-select input:checked')].map(c => +c.value).sort();
   if (!years.length) { show('<div class="status error">Selectati cel putin un an</div>'); return; }
 
+  const seq = ++loadSeq;
+  const get = url => fetch(url).then(r => r.json()).catch(() => null);
+
   show('<div class="status"><span class="spinner"></span> Se incarca profilul companiei…</div>');
 
-  const [companyResp, ...bilantResults] = await Promise.allSettled([
-    fetch(`/api/company?cui=${cui}`).then(r => r.json()),
-    ...years.map(y => fetch(`/api/bilant?an=${y}&cui=${cui}`).then(r => r.json()))
-  ]);
+  const bilantReq = Promise.all(years.map(y => get(`/api/bilant?an=${y}&cui=${cui}`)));
+  const anafReq = get(`/api/anaf?cui=${cui}`);
 
-  const companyData = companyResp.status === 'fulfilled' ? companyResp.value : null;
+  // Render the registry data as soon as D1 answers; ANAF is slower and fills in afterwards
+  const companyData = await get(`/api/company?cui=${cui}`);
+  if (seq !== loadSeq) return;
   const company = companyData?.company || {};
   const caenCodes = companyData?.caen_codes || [];
+  renderProfile(cui, company, caenCodes, {}, years, '', '', true);
 
   const bilant = {};
   let caenFromBilant = '', denCaenBilant = '';
-  years.forEach((year, i) => {
-    if (bilantResults[i].status === 'fulfilled') {
-      const d = bilantResults[i].value;
-      if (d.i && d.i.length > 0) {
-        bilant[year] = {};
-        d.i.forEach(ind => { bilant[year][ind.indicator] = ind.val_indicator; });
-        if (d.caen) { caenFromBilant = d.caen; denCaenBilant = d.den_caen || ''; }
-      }
-    }
+  (await bilantReq).forEach((d, i) => {
+    if (!d?.i?.length) return;
+    bilant[years[i]] = {};
+    d.i.forEach(ind => { bilant[years[i]][ind.indicator] = ind.val_indicator; });
+    if (d.caen) { caenFromBilant = d.caen; denCaenBilant = d.den_caen || ''; }
   });
-
+  if (seq !== loadSeq) return;
   renderProfile(cui, company, caenCodes, bilant, years, caenFromBilant, denCaenBilant);
 
-  // Load ANAF TVA data + similar companies in background
-  fetch(`/api/anaf?cui=${cui}`)
-    .then(r => r.json())
-    .then(d => { if (d.data) renderAnafInfo(d.data); })
-    .catch(() => {});
+  anafReq.then(d => { if (seq === loadSeq && d?.data) renderAnafInfo(d.data); });
 
-  const mainCaen = caenFromBilant || (caenCodes[0]?.cod_caen);
+  const mainCaen = caenFromBilant || caenCodes[0]?.cod_caen;
   if (mainCaen) {
-    fetch(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
-      .then(r => r.json())
-      .then(d => renderSimilar(d.results || []))
-      .catch(() => {});
+    get(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
+      .then(d => { if (seq === loadSeq) renderSimilar(d?.results || []); });
   }
 }
 
@@ -386,7 +385,7 @@ function sizeCategory(revenue, employees) {
   return 'microintreprindere';
 }
 
-function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
+function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen, loading) {
   const available = years.filter(y => bilant[y]);
   const latest = available[available.length - 1];
   const prev = available.length > 1 ? available[available.length - 2] : null;
@@ -460,7 +459,9 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen) {
       html += `<div class="balance-sheet"><table><thead><tr><th colspan="2">Bilant ${year}</th></tr></thead><tbody>${Object.keys(INDICATORS).map(k=>`<tr><td>${INDICATORS[k]}</td><td>${fmtRON(v(year,k))}</td></tr>`).join('')}</tbody></table></div>`;
     });
   } else {
-    html += '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati.</div>';
+    html += loading
+      ? '<div class="status"><span class="spinner"></span> Se incarca datele financiare ANAF…</div>'
+      : '<div class="status">Nu s-au gasit date financiare ANAF pentru anii selectati.</div>';
   }
 
   html += '<div id="anafContainer"></div>';
