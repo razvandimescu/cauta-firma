@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>Cauta Firma — Date financiare pentru companiile din Romania</title>
 <meta name="description" content="Cauta in peste 4 milioane de companii din Romania cu date financiare ANAF in timp real. Gratuit si open source.">
 <link rel="preload" href="/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -262,8 +263,9 @@
   <div class="year-select">
     <label><input type="checkbox" value="2021"><span>2021</span></label>
     <label><input type="checkbox" value="2022"><span>2022</span></label>
-    <label><input type="checkbox" value="2023" checked><span>2023</span></label>
+    <label><input type="checkbox" value="2023"><span>2023</span></label>
     <label><input type="checkbox" value="2024" checked><span>2024</span></label>
+    <label><input type="checkbox" value="2025" checked><span>2025</span></label>
   </div>
 
   <div id="output"></div>
@@ -357,8 +359,8 @@ async function loadCompany(cui) {
   const companyData = await get(`/api/company?cui=${cui}`);
   if (seq !== loadSeq) return;
   if (!companyData || companyData.error) { show(`<div class="status error">${esc(companyData?.error || 'Compania nu a putut fi incarcata')}</div>`); return; }
-  const company = companyData?.company || {};
-  const caenCodes = companyData?.caen_codes || [];
+  const company = { ...companyData.company, stari: companyData.stari || [] };
+  const caenCodes = companyData.caen_codes || [];
   renderProfile(cui, company, caenCodes, {}, years, '', '', true);
 
   const bilant = {};
@@ -376,7 +378,7 @@ async function loadCompany(cui) {
 
   const mainCaen = caenFromBilant || caenCodes[0]?.cod_caen;
   if (mainCaen) {
-    get(`/api/similar?cui=${cui}&caen=${mainCaen}&judet=${encodeURIComponent(company.judet||'')}`)
+    get(`/api/similar?cui=${cui}&caen=${String(mainCaen).padStart(4, '0')}&judet=${encodeURIComponent(company.judet||'')}`)
       .then(d => { if (seq === loadSeq) renderSimilar(d?.results || []); });
   }
 }
@@ -394,10 +396,9 @@ function renderProfile(cui, co, caenCodes, bilant, years, mainCaen, denCaen, loa
   const v = (year, ind) => bilant[year]?.[ind] ?? 0;
   const pn = year => v(year,'I18') - v(year,'I19');
 
-  const isActive = !co.stare || co.stare === 'funcțiune';
-  const statusBadge = isActive
+  const statusBadge = co.stari.map(s => s === 'funcțiune'
     ? '<span class="badge badge-active">ACTIVA</span>'
-    : `<span class="badge badge-inactive">${esc(co.stare||'INACTIVA').toUpperCase()}</span>`;
+    : `<span class="badge badge-inactive">${esc(s).toUpperCase()}</span>`).join('');
 
   const emp = latest ? v(latest, 'I20') : 0;
   const rev = latest ? v(latest, 'I13') : 0;

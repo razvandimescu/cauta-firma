@@ -1,33 +1,47 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const handler = routes[url.pathname];
-    if (!handler) return env.ASSETS.fetch(request);
-    return cached(request, ctx, () => handler(url, env));
+    const route = routes[url.pathname];
+    if (!route) return env.ASSETS.fetch(request);
+    const [handler, params] = route;
+    const key = canonical(url, params);
+    return cached(key, ctx, () => handler(key, env));
   }
 };
 
 const routes = {
-  '/api/search': handleSearch,
-  '/api/company': handleCompany,
-  '/api/bilant': handleBilant,
-  '/api/anaf': handleAnaf,
-  '/api/similar': handleSimilar,
+  '/api/search': [handleSearch, ['q']],
+  '/api/company': [handleCompany, ['cui']],
+  '/api/bilant': [handleBilant, ['an', 'cui']],
+  '/api/anaf': [handleAnaf, ['cui']],
+  '/api/similar': [handleSimilar, ['caen', 'cui', 'judet']],
 };
 
-// Edge cache keyed on the full URL; repeated and crawler queries never reach D1
-async function cached(request, ctx, produce) {
+// Only known params, in fixed order, search text uppercased: extra params or casing cannot bypass the cache
+function canonical(url, params) {
+  const key = new URL(url.origin + url.pathname);
+  for (const p of params) {
+    const v = url.searchParams.get(p)?.trim();
+    if (v) key.searchParams.set(p, p === 'q' ? v.toUpperCase() : v);
+  }
+  return key;
+}
+
+// Edge cache keyed on the canonical URL; repeated and crawler queries never reach D1
+async function cached(key, ctx, produce) {
   const cache = caches.default;
-  const hit = await cache.match(request);
+  const hit = await cache.match(key.href);
   if (hit) return hit;
 
   const response = await produce().catch(unavailable);
   if (response.status === 200) {
     if (!response.headers.has('Cache-Control')) response.headers.set('Cache-Control', 'public, max-age=3600');
-    ctx.waitUntil(cache.put(request, response.clone()));
+    ctx.waitUntil(cache.put(key.href, response.clone()));
   }
   return response;
 }
+
+const cuiParam = url => /^\d{1,10}$/.test(url.searchParams.get('cui')) ? url.searchParams.get('cui') : null;
 
 async function handleSearch(url, env) {
   const q = (url.searchParams.get('q') || '').trim();
@@ -57,8 +71,8 @@ async function handleSearch(url, env) {
 }
 
 async function handleCompany(url, env) {
-  const cui = url.searchParams.get('cui');
-  if (!cui) return json({ error: 'Missing cui' }, 400);
+  const cui = cuiParam(url);
+  if (!cui) return json({ error: 'Invalid cui' }, 400);
 
   const company = await env.DB.prepare(
     `SELECT * FROM firme WHERE cui = ?1 LIMIT 1`
@@ -73,23 +87,29 @@ async function handleCompany(url, env) {
      WHERE ca.cod_inmatriculare = ?1`
   ).bind(company.cod_inmatriculare).all();
 
-  return json({ company, caen_codes: caenCodes.results });
+  const stari = await env.DB.prepare(
+    `SELECT ns.denumire FROM stare_firma sf
+     JOIN n_stare ns ON ns.cod = sf.cod
+     WHERE sf.cod_inmatriculare = ?1`
+  ).bind(company.cod_inmatriculare).all();
+
+  return json({ company, caen_codes: caenCodes.results, stari: stari.results.map(r => r.denumire) });
 }
 
 async function handleSimilar(url, env) {
-  const cui = url.searchParams.get('cui');
+  const cui = cuiParam(url);
   const caen = url.searchParams.get('caen');
   const judet = url.searchParams.get('judet');
-  if (!caen) return json({ results: [] });
+  if (!/^\d{4}$/.test(caen || '')) return json({ results: [] });
 
-  // Drop ORDER BY RANDOM() — just take first 8 matching rows
+  // Operating companies only (1048 = funcțiune); sole traders excluded since their names are personal names
   const results = await env.DB.prepare(
     `SELECT f.denumire, f.cui, f.judet, f.localitate, f.forma_juridica
      FROM firme f
-     JOIN caen_autorizat ca ON ca.cod_inmatriculare = f.cod_inmatriculare
-     WHERE ca.cod_caen = ?1
+     WHERE EXISTS (SELECT 1 FROM caen_autorizat ca WHERE ca.cod_inmatriculare = f.cod_inmatriculare AND ca.cod_caen = ?1)
        AND f.cui != ?2
-       AND (f.stare IS NULL OR f.stare = 'funcțiune')
+       AND f.forma_juridica NOT IN ('PFA', 'II', 'IF')
+       AND EXISTS (SELECT 1 FROM stare_firma sf WHERE sf.cod_inmatriculare = f.cod_inmatriculare AND sf.cod = 1048)
        ${judet ? 'AND f.judet = ?3' : ''}
      LIMIT 8`
   ).bind(...(judet ? [caen, cui || '', judet] : [caen, cui || ''])).all();
@@ -98,8 +118,8 @@ async function handleSimilar(url, env) {
 }
 
 async function handleAnaf(url) {
-  const cui = url.searchParams.get('cui');
-  if (!cui) return json({ error: 'Missing cui' }, 400);
+  const cui = cuiParam(url);
+  if (!cui) return json({ error: 'Invalid cui' }, 400);
 
   const today = new Date().toISOString().slice(0, 10);
   const target = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
@@ -129,9 +149,9 @@ async function handleAnaf(url) {
 }
 
 async function handleBilant(url) {
-  const cui = url.searchParams.get('cui');
-  const an = url.searchParams.get('an');
-  if (!cui || !an) return json({ error: 'Missing cui or an' }, 400);
+  const cui = cuiParam(url);
+  const an = +url.searchParams.get('an');
+  if (!cui || !(an >= 2000 && an < new Date().getFullYear())) return json({ error: 'Invalid cui or an' }, 400);
 
   const target = `https://webservicesp.anaf.ro/bilant?an=${an}&cui=${cui}`;
   for (let attempt = 0; attempt < 3; attempt++) {
